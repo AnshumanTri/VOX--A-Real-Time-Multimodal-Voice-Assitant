@@ -1,0 +1,429 @@
+:root {
+  --bg: oklch(16% 0.015 250);
+  --surface: oklch(21% 0.02 250);
+  --surface-2: oklch(26% 0.02 250);
+  --border: oklch(32% 0.02 250);
+  --ink: oklch(95% 0.01 250);
+  --ink-muted: oklch(70% 0.02 250);
+  --accent: oklch(78% 0.14 215);
+  --accent-strong: oklch(70% 0.17 215);
+  --accent-dim: oklch(30% 0.06 215);
+  --danger: oklch(65% 0.18 25);
+  --grid-line: oklch(60% 0.02 250 / 7%);
+
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background-color: var(--bg);
+  background-image: radial-gradient(circle at 50% 38%, oklch(70% 0.1 215 / 12%), transparent 55%),
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: auto, 48px 48px, 48px 48px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 24px 28px;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-title {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-size: 34px;
+  background: linear-gradient(135deg, var(--ink) 30%, var(--accent) 130%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.cursor-glow {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 220px;
+  height: 220px;
+  margin: -110px 0 0 -110px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 50;
+  background: radial-gradient(circle, oklch(78% 0.14 215 / 35%) 0%, transparent 70%);
+  filter: blur(8px);
+  mix-blend-mode: screen;
+  opacity: 0;
+  transition: opacity 280ms var(--ease-out-expo);
+  will-change: transform;
+}
+
+.cursor-glow.is-visible {
+  opacity: 1;
+}
+
+.app-subtitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--ink-muted);
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+.pipeline {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  gap: 64px;
+  margin-top: 8px;
+  padding: 0 8px;
+}
+
+.pipeline::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: min(70%, 360px);
+  transform: translateX(-50%);
+  height: 1px;
+  background: var(--border);
+  z-index: 0;
+}
+
+.pipeline-node {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.pipeline-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  transition: background 200ms var(--ease-out-expo), box-shadow 200ms var(--ease-out-expo),
+    border-color 200ms var(--ease-out-expo);
+}
+
+.pipeline-node.is-active .pipeline-dot {
+  background: var(--accent);
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 10px var(--accent);
+}
+
+.pipeline-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+}
+
+.pipeline-node.is-active .pipeline-label {
+  color: var(--ink);
+}
+
+.conversation-panel {
+  width: min(90vw, 480px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: -8px;
+}
+
+.conversation-line {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+.conversation-reply {
+  color: var(--ink);
+}
+
+.conversation-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-right: 6px;
+}
+
+.degraded-banner {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--danger);
+  background: oklch(65% 0.18 25 / 10%);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink);
+}
+
+.degraded-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.replay-button {
+  margin-top: 4px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: border-color 200ms var(--ease-out-expo), color 200ms var(--ease-out-expo);
+}
+
+.replay-button:hover {
+  border-color: var(--accent-strong);
+  color: var(--ink);
+}
+
+.latency-chart {
+  width: min(90vw, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: -4px;
+}
+
+.latency-chart-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--ink-muted);
+  margin-bottom: 2px;
+}
+
+.latency-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 50px;
+  align-items: center;
+  gap: 8px;
+}
+
+.latency-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-muted);
+}
+
+.latency-bar-track {
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.latency-bar-fill {
+  height: 100%;
+  background: var(--accent-dim);
+  border-radius: 3px;
+  transition: width 300ms var(--ease-out-expo);
+}
+
+.latency-bar-fill.is-total {
+  background: var(--accent);
+}
+
+.latency-value {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink);
+  text-align: right;
+}
+
+.level-meter-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: -16px;
+}
+
+.level-meter-caption {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--ink-muted);
+}
+
+.level-meter {
+  width: 160px;
+  height: 4px;
+  background: var(--surface-2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.level-meter-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 80ms linear;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: auto;
+}
+
+.status-open {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.status-connecting {
+  background: var(--ink-muted);
+}
+
+.status-closed {
+  background: var(--danger);
+  box-shadow: 0 0 8px var(--danger);
+}
+
+.status-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+}
+
+.orb-canvas {
+  width: min(60vw, 380px);
+  height: min(60vw, 380px);
+}
+
+.state-label {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--ink-muted);
+  margin-top: -12px;
+}
+
+.mic-button {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  touch-action: none;
+  box-shadow: 0 0 24px var(--accent-dim);
+  transition: box-shadow 220ms var(--ease-out-expo), transform 220ms var(--ease-out-expo),
+    border-color 220ms var(--ease-out-expo);
+}
+
+.mic-button:active,
+.mic-button.is-recording {
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 36px var(--accent-dim), 0 0 0 1px var(--accent-strong) inset;
+  transform: scale(0.96);
+}
+
+.mic-button-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.echo-log {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  max-height: 160px;
+  overflow-y: auto;
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 260px;
+}
+
+.echo-log-title {
+  color: var(--ink);
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+
+.echo-log-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.echo-log-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0;
+}
+
+.echo-log-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mic-button {
+    transition: none;
+  }
+}
