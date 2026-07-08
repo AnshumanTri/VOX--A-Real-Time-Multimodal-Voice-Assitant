@@ -1,6 +1,7 @@
 const STAGES = [
   { key: "mic", label: "MIC" },
   { key: "asr", label: "ASR" },
+  { key: "search", label: "SEARCH" },
   { key: "llm", label: "LLM" },
   { key: "tts", label: "TTS" },
 ];

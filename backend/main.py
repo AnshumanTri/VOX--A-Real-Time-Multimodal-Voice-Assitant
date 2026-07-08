@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import metrics
 import resilience
-from providers import generate_reply, synthesize_speech, transcribe_audio
+from providers import generate_reply, generate_search_reply, needs_search, synthesize_speech, transcribe_audio
 
 app = FastAPI()
 
@@ -20,6 +20,7 @@ app.add_middleware(
 )
 
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+MAX_HISTORY_TURNS = 3  # keep last N exchanges (user+assistant pairs)
 
 
 @app.on_event("startup")
@@ -71,7 +72,7 @@ async def speak_sentence(websocket: WebSocket, sentence: str, on_audio_ready=Non
         await send_json(websocket, {"type": "error", "stage": "tts", "message": str(exc)})
 
 
-async def process_query(websocket: WebSocket, transcript: str, asr_ms):
+async def process_query(websocket: WebSocket, transcript: str, asr_ms, history: list):
     t_start = time.perf_counter()
     timing = {}
     if asr_ms is not None:
@@ -79,6 +80,7 @@ async def process_query(websocket: WebSocket, transcript: str, asr_ms):
 
     first_chunk_at = None
     first_audio_at = None
+    use_search = needs_search(transcript)
 
     def mark_first_audio():
         nonlocal first_audio_at
@@ -88,7 +90,7 @@ async def process_query(websocket: WebSocket, transcript: str, asr_ms):
     async def consume_llm():
         nonlocal first_chunk_at
         buffer = ""
-        async for chunk in generate_reply(transcript):
+        async for chunk in generate_reply(transcript, history):
             if first_chunk_at is None:
                 first_chunk_at = time.perf_counter()
                 timing["llm_ttft_ms"] = (first_chunk_at - t_start) * 1000
@@ -100,22 +102,52 @@ async def process_query(websocket: WebSocket, transcript: str, asr_ms):
                 buffer = parts[-1]
         return buffer
 
+    async def consume_search():
+        nonlocal first_chunk_at
+        await send_json(websocket, {"type": "searching"})
+        text = await generate_search_reply(transcript, history)
+        first_chunk_at = time.perf_counter()
+        timing["llm_ttft_ms"] = (first_chunk_at - t_start) * 1000
+        sentences = [s for s in SENTENCE_END.split(text) if s.strip()]
+        for sentence in sentences:
+            await speak_sentence(websocket, sentence, mark_first_audio)
+        return text
+
     try:
-        buffer = await asyncio.wait_for(consume_llm(), timeout=resilience.LLM_TIMEOUT_S)
+        if use_search:
+            try:
+                buffer = await asyncio.wait_for(consume_search(), timeout=resilience.LLM_TIMEOUT_S)
+            except Exception:
+                await send_json(
+                    websocket,
+                    {"type": "degraded", "stage": "search", "message": "Live search unavailable, answering directly."},
+                )
+                use_search = False
+                buffer = await asyncio.wait_for(consume_llm(), timeout=resilience.LLM_TIMEOUT_S)
+        else:
+            buffer = await asyncio.wait_for(consume_llm(), timeout=resilience.LLM_TIMEOUT_S)
+
         t_llm_done = time.perf_counter()
         timing["llm_total_ms"] = (t_llm_done - t_start) * 1000
-        await speak_sentence(websocket, buffer, mark_first_audio)
+        if not use_search:
+            await speak_sentence(websocket, buffer, mark_first_audio)
     except asyncio.TimeoutError:
         await send_json(
             websocket,
             {"type": "degraded", "stage": "llm", "message": "Response is taking too long."},
         )
         await speak_sentence(websocket, resilience.LLM_FALLBACK_TEXT, mark_first_audio)
+        buffer = None
     except asyncio.CancelledError:
         raise
     except Exception as exc:
         await send_json(websocket, {"type": "error", "stage": "llm", "message": str(exc)})
         return
+
+    if buffer:
+        history.append({"role": "user", "content": transcript})
+        history.append({"role": "assistant", "content": buffer})
+        del history[: max(0, len(history) - MAX_HISTORY_TURNS * 2)]
 
     t_end = time.perf_counter()
     if first_audio_at:
@@ -128,7 +160,7 @@ async def process_query(websocket: WebSocket, transcript: str, asr_ms):
     await send_json(websocket, {"type": "llm_done"})
 
 
-async def handle_audio(websocket: WebSocket, audio_bytes: bytes):
+async def handle_audio(websocket: WebSocket, audio_bytes: bytes, history: list):
     t_start = time.perf_counter()
     try:
         transcript = await asyncio.wait_for(
@@ -148,7 +180,7 @@ async def handle_audio(websocket: WebSocket, audio_bytes: bytes):
     asr_ms = (time.perf_counter() - t_start) * 1000
     await send_json(websocket, {"type": "transcript", "text": transcript})
     resilience.record_session(transcript)
-    await process_query(websocket, transcript, asr_ms)
+    await process_query(websocket, transcript, asr_ms, history)
 
 
 async def handle_replay(websocket: WebSocket, session_id):
@@ -157,13 +189,14 @@ async def handle_replay(websocket: WebSocket, session_id):
         await send_json(websocket, {"type": "error", "stage": "replay", "message": "Session not found."})
         return
     await send_json(websocket, {"type": "transcript", "text": entry["transcript"]})
-    await process_query(websocket, entry["transcript"], asr_ms=None)
+    await process_query(websocket, entry["transcript"], asr_ms=None, history=[])
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     current_task = None
+    history: list = []
 
     async def cancel_current():
         nonlocal current_task
@@ -191,7 +224,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     await send_json(websocket, {"type": "echo", "text": message["text"]})
             elif message.get("bytes") is not None:
                 await cancel_current()
-                current_task = asyncio.create_task(handle_audio(websocket, message["bytes"]))
+                current_task = asyncio.create_task(handle_audio(websocket, message["bytes"], history))
     except WebSocketDisconnect:
         if current_task and not current_task.done():
             current_task.cancel()

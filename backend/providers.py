@@ -13,9 +13,21 @@ _deepgram_client = DeepgramClient(api_key=os.environ.get("DEEPGRAM_API_KEY"))
 
 ASR_MODEL = "whisper-large-v3-turbo"
 GROQ_LLM_MODEL = "openai/gpt-oss-20b"
+GROQ_SEARCH_MODEL = "groq/compound-mini"
 TTS_MODEL = "aura-2-thalia-en"
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "groq")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "mistral:latest")
+
+SEARCH_TRIGGERS = (
+    "latest", "current", "today", "right now", "recent",
+    "weather", "news", "score", "price of", "who is the",
+    "what year is it", "what's the date", "search for", "look up",
+)
+
+
+def needs_search(transcript: str) -> bool:
+    lowered = transcript.lower()
+    return any(trigger in lowered for trigger in SEARCH_TRIGGERS)
 
 
 async def transcribe_audio(audio_bytes: bytes) -> str:
@@ -35,12 +47,12 @@ SYSTEM_PROMPT = (
 )
 
 
-async def generate_reply(transcript: str):
-    """Yields response text chunks as they stream in."""
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": transcript},
-    ]
+async def generate_reply(transcript: str, history: list | None = None):
+    """Yields response text chunks as they stream in. history = prior [{role, content}, ...]."""
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    if history:
+        messages.extend(history)
+    messages.append({"role": "user", "content": transcript})
 
     if LLM_PROVIDER == "ollama":
         stream = await _ollama_client.chat(
@@ -62,6 +74,19 @@ async def generate_reply(transcript: str):
             delta = chunk.choices[0].delta.content
             if delta:
                 yield delta
+
+
+async def generate_search_reply(transcript: str, history: list | None = None) -> str:
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    if history:
+        messages.extend(history)
+    messages.append({"role": "user", "content": transcript})
+
+    response = await _groq_client.chat.completions.create(
+        model=GROQ_SEARCH_MODEL,
+        messages=messages,
+    )
+    return response.choices[0].message.content
 
 
 async def synthesize_speech(text: str) -> bytes:

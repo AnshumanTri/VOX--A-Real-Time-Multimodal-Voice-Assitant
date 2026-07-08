@@ -144,6 +144,17 @@ Each of these is a class of bug that doesn't show up in local development on a s
 
 ---
 
+## Beyond the Core Pipeline
+
+Two additions built after the initial three phases, aimed at closing the gap with production-grade voice assistants:
+
+- **Multi-turn memory**: the last 3 exchanges are kept in memory per session and passed to the LLM on every turn, so follow-up questions ("what did I just ask?") work correctly. Capped deliberately to bound latency/token cost — not unlimited context.
+- **Live web search**: queries containing time-sensitive language ("latest", "current", "today", "weather", "news", etc.) route to Groq's built-in `compound-mini` system, which performs a real web search server-side before answering — no custom search API needed. A `SEARCH` node lights up in the pipeline strip when this fires.
+
+**A real free-tier limit surfaced here, handled gracefully rather than patched around**: `compound-mini`'s internal search+reasoning consumes far more tokens per call than the standard model, and free-tier accounts hit Groq's tokens-per-minute cap on some queries. Rather than fail the request, the system catches this and falls back to answering directly with the standard fast model — the user still gets a real answer, with a visible "degraded" banner explaining live search wasn't available for that query. This is the same graceful-degradation philosophy from Phase 3, applied to a genuine constraint discovered after deployment rather than a theoretical one.
+
+---
+
 ## Local Setup
 
 **Backend**
@@ -184,3 +195,4 @@ npm run dev
 - Building genuine resilience: timeouts, graceful degradation, cancellable concurrent tasks, and a debugging/replay tool — not just a happy-path demo
 - Operating entirely on free-tier infrastructure across four different providers (Groq, Deepgram, Render, Vercel) without compromising the production-readiness of the design
 - Diagnosing and fixing real cross-environment bugs (cold-start latency, CORS, OS-dependent git behavior) that only appear once a system leaves a single developer's machine
+- Extending a working system with real agentic features (memory, live tool use) and handling the free-tier constraints that come with them, rather than only demoing the happy path

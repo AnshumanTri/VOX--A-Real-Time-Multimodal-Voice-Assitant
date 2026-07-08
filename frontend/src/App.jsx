@@ -12,8 +12,8 @@ import { useSocket } from "./hooks/useSocket.js";
 import { useMic } from "./hooks/useMic.js";
 import { useAudioQueue } from "./hooks/useAudioQueue.js";
 
-const STAGE_BY_PHASE = { listening: "mic", asr: "asr", llm: "llm", speaking: "tts" };
-const ORB_STATE_BY_PHASE = { listening: "listening", asr: "thinking", llm: "thinking", speaking: "speaking" };
+const STAGE_BY_PHASE = { listening: "mic", asr: "asr", searching: "search", llm: "llm", speaking: "tts" };
+const ORB_STATE_BY_PHASE = { listening: "listening", asr: "thinking", searching: "thinking", llm: "thinking", speaking: "speaking" };
 
 export default function App() {
   const [phase, setPhase] = useState("idle"); // idle | listening | asr | llm | speaking
@@ -52,6 +52,10 @@ export default function App() {
         case "degraded":
           setDegradedMessage(msg.message);
           appendLog(`degraded (${msg.stage}): ${msg.message}`);
+          break;
+        case "searching":
+          setPhase("searching");
+          appendLog("searching web...");
           break;
         case "reply_chunk":
           pendingTextRef.current.push(msg.text);
