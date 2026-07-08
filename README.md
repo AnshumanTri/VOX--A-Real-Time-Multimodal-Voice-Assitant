@@ -2,7 +2,7 @@
 
 A full-duplex streaming voice assistant built to explore what changes when a system has to respond *now* instead of in a batch job: tight latency budgets, partial failure mid-request, and pipelines where every stage is happening concurrently rather than sequentially-and-comfortably.
 
-**🔴 Live demo:** https://vox-a-real-time-multimodal-voice-assitant-mq3j-8qqktsif7.vercel.app/
+**🔴 Live demo:** [https://vox-a-real-time-multimodal-voice-assitant-mq3j-8qqktsif7.vercel.app/](https://vox-a-real-time-multimodal-voice-as-kappa.vercel.app/)
 **⚙️ Backend:** https://vox-backend-n6fj.onrender.com
 
 > First load may take 30-60s — the backend runs on a free-tier instance that sleeps after 15 minutes idle. This is intentional and explained in the [Resilience](#phase-3--engineering-for-failure) section below, not a bug.
